@@ -8,4 +8,4 @@ export ROS_DOMAIN_ID=42
 unset ROS_LOCALHOST_ONLY
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 
-python3 run.py  
+python3 4_motor.py  

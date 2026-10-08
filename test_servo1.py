@@ -1,58 +1,59 @@
-
-import RPi.GPIO as GPIO
-import threading
-import time
-import os
-import sys
-from gpiozero import DigitalOutputDevice, PWMOutputDevice
-from gpiozero import DigitalInputDevice, Servo
 from time import sleep
 
-DIR_PIN1 = 20
-ENA_PIN1 = 21
-STEP_PIN1 = 19
+from gpiozero import DigitalOutputDevice, PWMOutputDevice
 
-DIR_PIN2 = 24
-ENA_PIN2 = 25
-STEP_PIN2 = 13
+MOTOR_PINS = (
+    (20, 21, 19),
+    (17, 27, 18),
+    (5, 7, 12),
+    (16, 26, 13),
+)
+STEP_FREQUENCY = 800
 
-dir_ctrl1 = DigitalOutputDevice(DIR_PIN1)
-ena_ctrl1 = DigitalOutputDevice(ENA_PIN1)
-step_ctrl1 = PWMOutputDevice(STEP_PIN1, frequency=700)
 
-dir_ctrl2 = DigitalOutputDevice(DIR_PIN2)
-ena_ctrl2 = DigitalOutputDevice(ENA_PIN2)
-step_ctrl2 = PWMOutputDevice(STEP_PIN2, frequency=5000)
+def main():
+    motors = []
+    devices = []
+    right = 1
 
-right = 1
+    try:
+        for dir_pin, ena_pin, step_pin in MOTOR_PINS:
+            ena_ctrl = DigitalOutputDevice(ena_pin, initial_value=True)
+            devices.append(ena_ctrl)
+            dir_ctrl = DigitalOutputDevice(dir_pin)
+            devices.append(dir_ctrl)
+            step_ctrl = PWMOutputDevice(
+                step_pin, frequency=STEP_FREQUENCY, initial_value=0
+            )
+            devices.append(step_ctrl)
+            motors.append((dir_ctrl, ena_ctrl, step_ctrl))
 
-def start_motor():
-    global right
+        while True:
+            input("Nhan Enter de chay/dao chieu ca 4 motor; Ctrl+C de dung: ")
 
-    if right == 0:
-        dir_ctrl1.on()
-        step_ctrl1.value = 0.5
-        right = 1
-    else:
-        dir_ctrl1.off()
-        step_ctrl1.value = 0.5
-        right = 0
+            for _, _, step_ctrl in motors:
+                step_ctrl.value = 0
+            sleep(0.01)
 
-def keyboard_thread():
-    while True:
-        print("Enter to start")
-        input()
-        start_motor()
+            right = 1 - right
+            for dir_ctrl, ena_ctrl, _ in motors:
+                dir_ctrl.value = right
+                ena_ctrl.off()
+            sleep(0.01)
 
-threading.Thread(target=keyboard_thread, daemon=True).start()
+            for _, _, step_ctrl in motors:
+                step_ctrl.value = 0.5
+            print("Ca 4 motor dang chay, right:", right)
 
-try:
-    ena_ctrl1.off()
+    except (KeyboardInterrupt, EOFError):
+        print("\nDung ca 4 motor.")
+    finally:
+        for _, _, step_ctrl in motors:
+            step_ctrl.value = 0
+        for _, ena_ctrl, _ in motors:
+            ena_ctrl.on()
+        for device in reversed(devices):
+            device.close()
 
-    while True:
-        sleep(0.2)
-        print("right: ", right)
-        
-finally:
-    step_ctrl1.value = 0.0
-    ena_ctrl1.on()
+if __name__ == "__main__":
+    main()
